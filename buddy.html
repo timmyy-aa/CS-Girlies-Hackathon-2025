@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Buddy — Stay Accountable, Learn Smarter</title>
+
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+  <style>
+    /* Basic reset */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html,body { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: #1a1a1a;
+      color: #222;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    .landing-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .landing-card {
+      width: 100%;
+      max-width: 900px;
+      background: #e8e8e8;
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    .app-container { display:none; min-height:100vh; }
+    .app-layout { display:flex; min-height:100vh; }
+
+    .sidebar {
+      width: 80px;
+      background: linear-gradient(180deg,#7c3aed,#6d28d9);
+      padding: 18px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+    }
+
+    .sidebar-logo { width:48px; height:48px; border-radius:10px; background:rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; }
+
+    .nav-item {
+      width: 64px;
+      padding: 10px;
+      border-radius: 10px;
+      color: white;
+      text-align:center;
+      cursor:pointer;
+      font-size:11px;
+      background: rgba(255,255,255,0.06);
+    }
+    .nav-item.active { background: rgba(255,255,255,0.18); }
+
+    .main-content {
+      flex:1;
+      padding: 32px;
+      background: transparent;
+    }
+
+    .page { display:none; max-width:1100px; margin:0 auto; }
+    .page.active { display:block; }
+
+    .content-card {
+      background: #e8e8e8;
+      padding: 22px;
+      border-radius: 14px;
+    }
+
+    .section { background:white; border-radius:12px; padding:18px; margin-bottom:16px; }
+    .page-title { font-size:22px; font-weight:700; margin-bottom:12px; color:#111; }
+
+    .task-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;}
+    .task-item:last-child { border-bottom:none; }
+    .task-left { display:flex; gap:10px; align-items:center; }
+    .task-checkbox { width:22px; height:22px; border-radius:50%; border:2px solid #16a085; display:flex; align-items:center; justify-content:center; color:#16a085; cursor:pointer; }
+
+    .friend-item { display:flex; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0; }
+    .friend-avatar { width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;background:linear-gradient(135deg,#16a085,#138d75); }
+
+    .timer-display { text-align:center; padding:30px 0; }
+    .timer-time { font-size:56px; font-weight:800; color:#111; margin-bottom:10px; }
+    .timer-controls { display:flex; gap:12px; justify-content:center; }
+
+    .btn { border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600; }
+    .btn-primary { background:#7c3aed;color:white; }
+    .btn-add { background:#e8e8e8; color:#333; }
+
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:2000; }
+    .modal.show { display:flex; }
+    .modal-card { background:white; padding:20px; border-radius:12px; min-width:300px; max-width:720px; }
+
+    .form-input, .form-textarea {
+      width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; font-family:inherit;
+    }
+    .form-textarea { min-height:80px; resize:vertical; }
+
+    @media (max-width:760px) {
+      .app-layout { flex-direction:column; }
+      .sidebar { width:100%; flex-direction:row; justify-content:space-around; padding:10px; }
+      .main-content { padding:16px; }
+    }
+  </style>
+</head>
+
+<body>
+  <audio id="alarmSound" src="assets/alarm.mp3" preload="auto"></audio>
+
+  <!-- LANDING -->
+  <div id="landingPage" class="landing-page">
+    <div class="landing-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="logo-section" aria-hidden="true">
+            <div class="logo" style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:white;display:flex;align-items:center;justify-content:center;">B</div>
+          </div>
+          <div>
+            <div style="font-size:20px;font-weight:800;color:#111;">Buddy</div>
+            <div style="color:#666;font-size:13px;">Stay accountable · Learn smarter</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button class="btn" onclick="showLoginModal()">Log in</button>
+          <button class="btn btn-primary" onclick="showSignupModal()">Sign up</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:center;">
+        <div style="flex:1;">
+          <h1 style="font-size:28px;margin-bottom:8px;">Focus better. Learn faster. Buddy’s got your back.</h1>
+          <p style="color:#555;margin-bottom:14px;">Create SMART goals, split them into daily tasks, study with friends, and keep a record of your progress.</p>
+
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" onclick="showSignupModal()">Get Started</button>
+            <button class="btn" onclick="showLoginModal()">I already have an account</button>
+          </div>
+        </div>
+
+        <div style="width:260px;">
+          <div style="height:160px;border-radius:12px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">Study Together</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appContainer" class="app-container" aria-hidden="true">
+    <div class="app-layout">
+      <div class="sidebar" role="navigation" aria-label="Main navigation">
+        <div class="sidebar-logo" title="Buddy">B</div>
+
+        <div class="nav-item active" onclick="switchPage('dashboard')">
+          <div style="font-size:18px;">📈</div>
+          <div style="font-size:11px;margin-top:6px;">Dashboard</div>
+        </div>
+
+        <div class="nav-item" onclick="switchPage('tasks')">
+          <div style="font-size:18px;">✓</div>
+          <div style="font-size:11px;margin-top:6px;">Tasks</div>
+        </div>
+
+        <div class="nav-item" onclick="switchPage('smart-goals')">
+          <div style="font-size:18px;">🎯</div>
+          <div style="font-size:11px;margin-top:6px;">SMART goals</div>
+        </div>
+
+        <div class="nav-item" onclick="switchPage('friends')">
+          <div style="font-size:18px;">👥</div>
+          <div style="font-size:11px;margin-top:6px;">Friends</div>
+        </div>
+
+        <div class="nav-item" onclick="switchPage('study-space')">
+          <div style="font-size:18px;">📚</div>
+          <div style="font-size:11px;margin-top:6px;">Study Space</div>
+        </div>
+
+        <div class="nav-item" onclick="switchPage('flashcards')">
+          <div style="font-size:18px;">🃏</div>
+          <div style="font-size:11px;margin-top:6px;">Flashcards</div>
+        </div>
+
+        <div style="margin-top:auto;width:100%;display:flex;justify-content:center;">
+          <button class="btn" onclick="logoutUser()" title="Logout">👤</button>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="page active">
+          <div class="content-card">
+            <h2 class="page-title">Dashboard</h2>
+
+            <div class="section" aria-live="polite">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-weight:700;">Today's Tasks</div>
+                <div style="color:#666;font-size:13px;">Auto-populated from Tasks</div>
+              </div>
+              <div id="dashboard-today-tasks">
+                <div class="task-item">
+                  <div class="task-left">
+                    <div class="task-checkbox">●</div>
+                    <div>
+                      <div class="task-text">No tasks for today. Create a goal or task to see it here.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-weight:700;">Goal Tracker</div>
+                <button class="btn btn-add" onclick="switchPage('smart-goals')">Manage Goals</button>
+              </div>
+
+              <div id="goal-tracker-list">
+                <div style="color:#666;">No active goals — create a SMART goal to get started.</div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-weight:700;">Friend Activity</div>
+                <div style="color:#666;font-size:13px;">Live feed</div>
+              </div>
+              <div id="friend-activity-list">
+                <div class="friend-item">
+                  <div class="friend-avatar">A</div>
+                  <div>
+                    <div style="font-weight:700;">Alex</div>
+                    <div style="color:#666;">Solving Physics</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SMART GOALS (version chosen: Part 2 full form) -->
+        <div id="smart-goals" class="page">
+          <div class="content-card">
+            <h2 class="page-title">Create SMART Goal</h2>
+
+            <form id="smartGoalForm" onsubmit="createGoal(event)">
+              <div class="section">
+                <div style="margin-bottom:12px;">
+                  <label style="display:block;font-weight:600;margin-bottom:6px;">Goal name</label>
+                  <input type="text" name="goalName" class="form-input" placeholder="Study for Math midterm" required>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                  <label style="display:block;font-weight:600;margin-bottom:6px;">Specific</label>
+                  <textarea name="specific" class="form-textarea" placeholder="What exactly do you want to accomplish?"></textarea>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                  <label style="display:block;font-weight:600;margin-bottom:6px;">Measurable</label>
+                  <textarea name="measurable" class="form-textarea" placeholder="How will you measure your progress?"></textarea>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                  <label style="display:block;font-weight:600;margin-bottom:6px;">Achievable</label>
+                  <textarea name="achievable" class="form-textarea" placeholder="Is this goal realistic and attainable?"></textarea>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                  <label style="display:block;font-weight:600;margin-bottom:6px;">Relevant</label>
+                  <textarea name="relevant" class="form-textarea" placeholder="Why is this goal important to you?"></textarea>
+                </div>
+
+                <div style="display:flex;gap:12px;">
+                  <div style="flex:1;">
+                    <label style="display:block;font-weight:600;margin-bottom:6px;">Start Date</label>
+                    <input type="date" name="startDate" class="form-input" required>
+                  </div>
+                  <div style="flex:1;">
+                    <label style="display:block;font-weight:600;margin-bottom:6px;">End Date</label>
+                    <input type="date" name="endDate" class="form-input" required>
+                  </div>
+                </div>
+
+                <div style="margin-top:12px;">
+                  <label style="font-size:13px;">
+                    <input type="checkbox" name="generateDaily" checked>
+                    &nbsp; Generate one daily task per day between start & end dates
+                  </label>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:12px;margin-top:12px;">
+                <button type="submit" class="btn btn-primary">Create Goal</button>
+                <button type="button" class="btn" onclick="document.getElementById('smartGoalForm').reset()">Reset</button>
+              </div>
+            </form>
+
+            <div style="margin-top:18px;color:#666;font-size:13px;">
+              Tip: When you create a goal Buddy will auto-create daily tasks that appear on the Tasks page and in Today's Tasks when they match today's date.
+            </div>
+          </div>
+        </div>
+
+        <!-- TASKS (version chosen: Part 2 functional list) -->
+        <div id="tasks" class="page">
+          <div class="content-card">
+            <h2 class="page-title">Tasks</h2>
+
+            <div class="section">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-weight:700;">Tasks from SMART Goals</div>
+                <div>
+                  <button class="btn btn-add" onclick="openAddTaskPrompt()">+ Add Task</button>
+                </div>
+              </div>
+
+              <div id="taskList">
+                <div style="text-align:center;color:#999;padding:30px;">No tasks yet. Create a SMART goal to generate tasks!</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FRIENDS (version chosen: Part 2) -->
+        <div id="friends" class="page">
+          <div class="content-card">
+            <h2 class="page-title">Friends & Wagers</h2>
+
+            <div class="section">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-weight:700;">Your network</div>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-add" onclick="generateFriendInviteLink()">📎 Invite Link</button>
+                  <button class="btn btn-add" onclick="searchFriend()">🔎 Search/Add</button>
+                </div>
+              </div>
+
+              <div id="friendsListContainer">
+                <div style="text-align:center;color:#999;padding:20px;">No friends yet. Invite or search to add friends.</div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-weight:700;">Your wager</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input id="wagerInput" type="number" min="0" placeholder="0" style="width:110px;padding:8px;border-radius:8px;border:1px solid #ddd">
+                  <button class="btn btn-primary" onclick="updateWager(event)">Update</button>
+                </div>
+              </div>
+              <div style="color:#666;font-size:13px;">Set a stake for your goals. Friends will see your wager on the Friends page.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STUDY SPACE (version chosen: Part 3) -->
+        <div id="study-space" class="page">
+          <div class="content-card">
+            <h2 class="page-title">Study Space</h2>
+
+            <div class="section">
+              <div style="font-weight:700;margin-bottom:10px;">Set Timer</div>
+
+              <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+                <div style="flex:1;">
+                  <label>Study Time (minutes)</label>
+                  <input id="studyTimeInput" type="number" min="1" value="25" class="form-input" onclick="updateTimerSettings()" onchange="updateTimerSettings()">
+                </div>
+                <div style="flex:1;">
+                  <label>Break Time (minutes)</label>
+                  <input id="breakTimeInput" type="number" min="1" value="5" class="form-input" onclick="updateTimerSettings()" onchange="updateTimerSettings()">
+                </div>
+              </div>
+
+              <div id="timerDisplay" style="font-size:48px;font-weight:700;text-align:center;margin:20px 0;">25:00</div>
+
+              <div style="display:flex;gap:12px;justify-content:center;">
+                <button class="btn btn-primary" onclick="startTimer()">Start</button>
+                <button class="btn" onclick="pauseTimer()">Pause</button>
+                <button class="btn" onclick="resetTimer()">Reset</button>
+              </div>
+
+              <div style="margin-top:20px;text-align:center;">
+                <button class="btn btn-add" onclick="openScheduleModal()">📅 Schedule for later</button>
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Solo Recap</h3>
+
+              <div style="display:flex;gap:12px;margin-bottom:10px;">
+                <button class="btn btn-primary" onclick="startRecording()">🎙 Start Recording</button>
+                <button class="btn" onclick="stopRecording()">⏹ Stop</button>
+              </div>
+
+              <audio id="recapPlayback" controls style="width:100%;display:none;margin-top:10px;"></audio>
+
+              <div id="recapHistory" style="margin-top:12px;color:#999;font-size:13px;">
+                No recordings yet.
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Recap With a Friend</h3>
+
+              <button class="btn btn-primary" onclick="openRecapModal()">🎧 Recap With Friend</button>
+
+              <div id="videoContainer" style="display:none;margin-top:20px;">
+                <video id="localVideo" autoplay muted style="width:100%;border-radius:12px;"></video>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FLASHCARDS -->
+        <div id="flashcards" class="page">
+          <div class="content-card">
+            <h2 class="page-title">Flashcards</h2>
+            <div style="color:#666;">Flashcards area — left for future enhancements.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+        <div id="recapModal" class="modal">
+         <div class="modal-card">
+           <h3 style="margin-top:0;margin-bottom:12px;">Recap With a Friend</h3>
+
+           <div id="onlineFriendsList" style="margin-bottom:15px;color:#444;">
+            Loading online friends...
+         </div>
+
+           <button class="btn btn-primary" onclick="startVoiceCall()">🎤 Voice Call</button>
+           <button class="btn btn-primary" onclick="startVideoCall()">🎥 Video Call</button>
+           <button class="btn" onclick="closeRecapModal()">Cancel</button>
+        </div>
+    </div>
+
+  <!-- SCHEDULE MODAL -->
+  <div id="scheduleModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <h3 style="margin-top:0;font-size:18px;">Schedule Study Session</h3>
+
+      <div style="margin-bottom:10px;">
+        <label style="display:block;margin-bottom:6px;">Choose date</label>
+        <input id="scheduleDate" type="date" class="form-input">
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label style="display:block;margin-bottom:6px;">Choose time</label>
+        <input id="scheduleTime" type="time" class="form-input">
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="btn btn-primary" onclick="saveSchedule()">Save & Add Reminder</button>
+        <button class="btn" onclick="closeScheduleModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN / SIGNUP MODAL (content inserted by JS) -->
+  <div id="loginModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <!-- Filled by JS -->
+      <div style="font-size:13px;color:#444;">(Login form will appear here.)</div>
+    </div>
+  </div>
+
+  <div id="signupModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div style="font-size:13px;color:#444;">(Sign up form will appear here.)</div>
+    </div>
+  </div>
+
+  <input id="fileInput" type="file" style="display:none" onchange="handleFileUpload(event)">
+
+  <!-- Consolidated script: all functions + firebase init -->
+  <script>
+  /* ============================
+     Firebase configuration & init
+     ============================ */
+  const firebaseConfig = {
+    apiKey: "AIzaSyASyfRTndaBd0DenmvzwmU9Vu8Qrv_v1DU",
+    authDomain: "buddy-c671d.firebaseapp.com",
+    projectId: "buddy-c671d",
+    storageBucket: "buddy-c671d.appspot.com",
+    messagingSenderId: "997019651546",
+    appId: "1:997019651546:web:54a77ec5527ff0999384e3"
+  };
+
+  let app, auth, db, storage;
+  try {
+    app = firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    storage = firebase.storage();
+    console.log("Firebase initialized");
+  } catch (e) {
+    console.error("Firebase init error:", e);
+  }
+
+  /* ============================
+     Global state
+     ============================ */
+  let currentUser = null;
+  const urlParams = new URLSearchParams(window.location.search);
+  let pendingInvite = urlParams.get('invite') || null;
+
+  /* ============================
+     Navigation helpers
+     ============================ */
+  function switchPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const target = document.getElementById(pageId);
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    const pageMap = {
+      'dashboard':'Dashboard',
+      'tasks':'Tasks',
+      'smart-goals':'SMART goals',
+      'friends':'Friends',
+      'study-space':'Study Space',
+      'flashcards':'Flashcards'
+    };
+    const label = pageMap[pageId];
+    if (label) {
+      const found = [...document.querySelectorAll('.nav-item')].find(n => n.textContent.trim().includes(label));
+      if (found) found.classList.add('active');
+    }
+  }
+
+  /* ============================
+     Timer settings placeholder (wired to actual timer below)
+     ============================ */
+  function updateTimerSettings() {
+    const sEl = document.getElementById('studyTimeInput');
+    const bEl = document.getElementById('breakTimeInput');
+    const s = parseInt(sEl?.value || 25);
+    const b = parseInt(bEl?.value || 5);
+    // window variables used by timer functions below
+    window.studyTime = s;
+    window.breakTime = b;
+    if (!window.isRunning) {
+      window.timeLeft = window.studyTime * 60;
+      updateTimerDisplay();
+    }
+  }
+
+  /* ============================
+     Tasks / Goals / Friends functions
+     ============================ */
+ async function createGoal(event) {
+    event.preventDefault();
+    if (!currentUser) return alert('Please log in to create goals');
+
+    const form = document.getElementById('smartGoalForm');
+    const name = form.goalName.value.trim();
+    const specific = form.specific.value.trim();
+    const measurable = form.measurable.value.trim();
+    const achievable = form.achievable.value.trim();
+    const relevant = form.relevant.value.trim();
+    const startDate = form.startDate.value;
+    const endDate = form.endDate.value;
+    const generateDaily = form.generateDaily.checked;
+
+    if (!name) return alert('Please provide a goal name.');
+    if (!startDate || !endDate) return alert('Please provide start and end dates.');
+
+    // Build goalData object (NO await inside!)
+    const goalData = {
+      name,
+      specific,
+      measurable,
+      achievable,
+      relevant,
+      startDate,
+      endDate,
+      progress: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      // Save the goal first
+      const goalRef = await db.collection('users').doc(currentUser.uid).collection('goals').add(goalData);
+      
+      // Generate tasks if checkbox is checked
+      if (generateDaily) {
+        await autoGenerateTasks(goalRef.id, goalData);
+      }
+      
+      alert('Goal created successfully!');
+      form.reset();
+      switchPage('tasks');
+      await loadTasks();
+      await loadTodaysTasks();
+      await loadGoals();
+    } catch (err) {
+      console.error('createGoal error', err);
+      alert('Failed to create goal. Check console for details.');
+    }
+}
+
+function openRecapModal() {
+  if (!currentUser) return alert("Please log in");
+  loadOnlineFriends();
+  document.getElementById("recapModal").classList.add("show");
+}
+
+function closeRecapModal() {
+  document.getElementById("recapModal").classList.remove("show");
+}
+
+async function loadOnlineFriends() {
+  const container = document.getElementById("onlineFriendsList");
+  container.innerHTML = "Loading...";
+
+  const userDoc = await db.collection("users").doc(currentUser.uid).get();
+  const friends = userDoc.data().friends || [];
+
+  if (friends.length === 0) {
+    container.innerHTML = "No friends added.";
+    return;
+  }
+
+  let html = "";
+  for (const id of friends) {
+    const f = await db.collection("users").doc(id).get();
+    const fd = f.data();
+
+    html += `
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
+        <div class="friend-avatar">${(fd.name || 'F')[0]}</div>
+        <div>${fd.name || fd.email}</div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+async function startVoiceCall() {
+  closeRecapModal();
+  alert("Voice call started (placeholder) — audio only mode enabled.");
+}
+
+async function startVideoCall() {
+  closeRecapModal();
+  startVideoCall();
+}
+
+
+async function autoGenerateTasks(goalId, goal) {
+    if (!currentUser) return;
+    if (!goal.startDate || !goal.endDate) return;
+
+    const start = new Date(goal.startDate + 'T00:00:00');
+    const end = new Date(goal.endDate + 'T00:00:00');
+
+    if (end < start) {
+      const iso = start.toISOString().split('T')[0];
+      await db.collection('users').doc(currentUser.uid).collection('tasks').add({
+        name: `${goal.name} — Day 1`,
+        date: iso,
+        goalId,
+        completed: false,
+        progress: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return;
+    }
+
+    const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
+    for (let i = 0; i <= days; i++) {
+      const dt = new Date(start);
+      dt.setDate(start.getDate() + i);
+      const isoDate = dt.toISOString().split('T')[0];
+      await db.collection('users').doc(currentUser.uid).collection('tasks').add({
+        name: `${goal.name} — Day ${i+1}`,
+        date: isoDate,
+        goalId,
+        completed: false,
+        progress: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+}
+
+  async function loadTasks() {
+    if (!currentUser) return;
+    try {
+      const snapshot = await db.collection('users').doc(currentUser.uid).collection('tasks').orderBy('date','asc').get();
+      const taskList = document.getElementById('taskList');
+      taskList.innerHTML = '';
+      if (snapshot.empty) {
+        taskList.innerHTML = `<div style="text-align:center;color:#999;padding:30px;">No tasks yet. Create a SMART goal to generate tasks!</div>`;
+        return;
+      }
+      snapshot.forEach(doc => {
+        const t = doc.data();
+        const date = t.date || 'No date';
+        const el = document.createElement('div');
+        el.className = 'task-item';
+        el.innerHTML = `
+          <div class="task-left">
+            <div class="task-checkbox" onclick="toggleTask('${doc.id}')">${t.completed ? '✓' : '●'}</div>
+            <div style="display:flex;flex-direction:column;">
+              <div style="${t.completed ? 'text-decoration:line-through;opacity:0.6' : ''}">${t.name}</div>
+              <small style="color:#666">${date}</small>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-add" onclick="editTask('${doc.id}')">✏️</button>
+            <button class="btn btn-add" onclick="deleteTask('${doc.id}')">🗑️</button>
+          </div>
+        `;
+        taskList.appendChild(el);
+      });
+    } catch (err) {
+      console.error('loadTasks error', err);
+    }
+  }
+
+  async function loadFriends() {
+    if (!currentUser) return;
+    try {
+      const userRef = db.collection('users').doc(currentUser.uid);
+      const userDoc = await userRef.get();
+      const userData = userDoc.exists ? userDoc.data() : {};
+      const friendIds = userData.friends || [];
+
+      const container = document.getElementById('friendsListContainer');
+      container.innerHTML = '';
+
+      container.innerHTML += `
+        <div class="friend-item">
+          <div class="friend-avatar">${(userData.name||'You').charAt(0) || 'U'}</div>
+          <div>
+            <div style="font-weight:700;">${userData.name || userData.email || 'You'} (You)</div>
+            <div style="color:#666">Wager: $${userData.wager || 0}</div>
+          </div>
+        </div>
+      `;
+
+      if (!friendIds.length) {
+        container.innerHTML += `<div style="text-align:center;color:#999;padding:12px;">No friends yet. Invite or search to add friends.</div>`;
+        return;
+      }
+
+      for (const id of friendIds) {
+        try {
+          const fdoc = await db.collection('users').doc(id).get();
+          if (!fdoc.exists) continue;
+          const d = fdoc.data();
+          container.innerHTML += `
+            <div class="friend-item">
+              <div class="friend-avatar">${(d.name||'F').charAt(0)}</div>
+              <div>
+                <div style="font-weight:700;">${d.name || d.email}</div>
+                <div style="color:#666">Wager: $${d.wager || 0}</div>
+              </div>
+            </div>
+          `;
+        } catch (e) {
+          console.warn('failed to load friend', id, e);
+        }
+      }
+    } catch (err) {
+      console.error('loadFriends error', err);
+    }
+  }
+
+  async function openAddTaskPrompt() {
+    if (!currentUser) return alert('Please log in to add tasks');
+    const name = prompt('Enter task name:');
+    if (!name) return;
+    const date = prompt('Enter due date (YYYY-MM-DD) or leave blank:');
+    try {
+      await db.collection('users').doc(currentUser.uid).collection('tasks').add({
+        name,
+        date: date || null,
+        completed: false,
+        progress: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await loadTasks();
+      await loadTodaysTasks();
+    } catch (err) {
+      console.error('add task error', err);
+      alert('Failed to add task');
+    }
+  }
+
+  async function editTask(taskId) {
+    if (!currentUser) return;
+    const ref = db.collection('users').doc(currentUser.uid).collection('tasks').doc(taskId);
+    const doc = await ref.get();
+    if (!doc.exists) return alert('Task not found');
+    const data = doc.data();
+    const newName = prompt('Edit task name:', data.name);
+    const newDate = prompt('Edit due date (YYYY-MM-DD):', data.date || '');
+    if (newName === null && newDate === null) return;
+    try {
+      await ref.update({ name: newName || data.name, date: newDate || data.date });
+      await loadTasks();
+      await loadTodaysTasks();
+    } catch (err) {
+      console.error('editTask error', err);
+      alert('Failed to update task');
+    }
+  }
+
+  async function deleteTask(taskId) {
+    if (!currentUser) return;
+    if (!confirm('Delete this task?')) return;
+    try {
+      await db.collection('users').doc(currentUser.uid).collection('tasks').doc(taskId).delete();
+      await loadTasks();
+      await loadTodaysTasks();
+    } catch (err) {
+      console.error('deleteTask error', err);
+      alert('Failed to delete task');
+    }
+  }
+
+  async function toggleTask(taskId) {
+    if (!currentUser) return;
+    const ref = db.collection('users').doc(currentUser.uid).collection('tasks').doc(taskId);
+    const doc = await ref.get();
+    if (!doc.exists) return;
+    try {
+      const current = doc.data().completed;
+      await ref.update({ completed: !current });
+      await loadTasks();
+      await loadTodaysTasks();
+    } catch (err) {
+      console.error('toggleTask error', err);
+    }
+  }
+
+  async function updateWager(e) {
+    if (e) e.preventDefault();
+    const val = parseFloat(document.getElementById('wagerInput').value || 0);
+    try {
+      await db.collection('users').doc(currentUser.uid).update({ wager: val });
+      alert('Wager updated');
+      await loadFriends();
+    } catch (err) {
+      console.error('updateWager error', err);
+      alert('Failed to update wager');
+    }
+  }
+
+  function generateFriendInviteLink() {
+    if (!currentUser) return alert('Please log in to invite friends');
+    const uid = currentUser.uid;
+    const link = `${window.location.origin}${window.location.pathname}?invite=${uid}`;
+    navigator.clipboard.writeText(link).then(() => alert('Invite link copied to clipboard!'));
+  }
+
+  async function searchFriend() {
+    if (!currentUser) return alert('Please log in');
+    const email = prompt("Enter your friend's email:");
+    if (!email) return;
+    try {
+      const snapshot = await db.collection('users').where('email', '==', email).get();
+      if (snapshot.empty) return alert('No user found with that email.');
+      const friendId = snapshot.docs[0].id;
+      if (friendId === currentUser.uid) return alert('You cannot add yourself.');
+      await db.collection('users').doc(currentUser.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(friendId) });
+      await db.collection('users').doc(friendId).update({ friends: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
+      alert('Friend added!');
+      await loadFriends();
+    } catch (err) {
+      console.error('searchFriend error', err);
+      alert('Failed to add friend');
+    }
+  }
+
+  async function acceptInvite(inviterId) {
+    if (!currentUser) return;
+    try {
+      await db.collection('users').doc(currentUser.uid).update({ friends: firebase.firestore.FieldValue.arrayUnion(inviterId) });
+      await db.collection('users').doc(inviterId).update({ friends: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
+      alert('🎉 You are now friends!');
+      await loadFriends();
+    } catch (err) {
+      console.error('acceptInvite error', err);
+    }
+  }
+
+  /* ============================
+     Timer logic (Part 3)
+     ============================ */
+  // Global timer state exposed on window for compatibility with updateTimerSettings
+  window.studyTime = 25;
+  window.breakTime = 5;
+  window.timeLeft = window.studyTime * 60;
+  window.isRunning = false;
+  window.timerInterval = null;
+  window.onBreak = false;
+
+  function updateTimerDisplay() {
+    const minutes = Math.floor(window.timeLeft / 60);
+    const seconds = window.timeLeft % 60;
+    const el = document.getElementById("timerDisplay");
+    if (el) el.textContent = `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+  }
+
+  function startTimer() {
+    if (window.isRunning) return;
+    window.isRunning = true;
+    window.timerInterval = setInterval(() => {
+      if (window.timeLeft > 0) {
+        window.timeLeft--;
+        updateTimerDisplay();
+      } else {
+        triggerAlarm();
+        if (!window.onBreak) {
+          window.onBreak = true;
+          window.timeLeft = window.breakTime * 60;
+        } else {
+          window.onBreak = false;
+          resetTimer();
+        }
+        updateTimerDisplay();
+      }
+    }, 1000);
+  }
+
+  function pauseTimer() {
+    window.isRunning = false;
+    clearInterval(window.timerInterval);
+  }
+
+  function resetTimer() {
+    pauseTimer();
+    window.onBreak = false;
+    window.timeLeft = window.studyTime * 60;
+    updateTimerDisplay();
+  }
+
+  function triggerAlarm() {
+    const alarm = document.getElementById("alarmSound");
+    if (alarm) {
+      alarm.currentTime = 0;
+      alarm.volume = 1.0;
+      alarm.play().catch(()=>console.warn("Autoplay blocked"));
+    }
+    if (window.electronAPI && window.electronAPI.notifyTimerFinished) {
+      window.electronAPI.notifyTimerFinished();
+    }
+    alert("Time's up! Great job 🎉");
+  }
+
+  /* ============================
+     Schedule modal (.ics download)
+     ============================ */
+  function openScheduleModal() { document.getElementById('scheduleModal').classList.add('show'); }
+  function closeScheduleModal() { document.getElementById('scheduleModal').classList.remove('show'); }
+
+  function saveSchedule() {
+    const date = document.getElementById("scheduleDate").value;
+    const time = document.getElementById("scheduleTime").value;
+    if (!date || !time) return alert("Please choose both a date and a time.");
+    const eventStart = new Date(`${date}T${time}:00`);
+    const icsContent = `
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SUMMARY:Study Session
+DTSTART:${eventStart.toISOString().replace(/[-:]/g, "").split(".")[0]}Z
+DTEND:${eventStart.toISOString().replace(/[-:]/g, "").split(".")[0]}Z
+DESCRIPTION:Scheduled study session in Buddy.
+END:VEVENT
+END:VCALENDAR
+`.trim();
+    const blob = new Blob([icsContent], { type: "text/calendar" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "buddy-study-session.ics";
+    link.click();
+    closeScheduleModal();
+    alert("Reminder saved! Check your calendar.");
+  }
+
+  /* ============================
+     Recorder (Solo recap)
+     ============================ */
+  let mediaRecorder = null;
+  let recordedChunks = [];
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      recordedChunks = [];
+      mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+      mediaRecorder.onstop = saveRecording;
+      mediaRecorder.start();
+      alert("Recording started!");
+    } catch (err) {
+      alert("Microphone access denied.");
+      console.error(err);
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+      alert("Recording stopped.");
+    }
+  }
+
+  function saveRecording() {
+    const blob = new Blob(recordedChunks, { type: "audio/webm" });
+    const url = URL.createObjectURL(blob);
+    const audio = document.getElementById("recapPlayback");
+    audio.src = url;
+    audio.style.display = "block";
+    const history = document.getElementById("recapHistory");
+    const item = document.createElement("div");
+    item.style.marginTop = "10px";
+    item.innerHTML = `<audio controls src="${url}" style="width:100%;"></audio>`;
+    history.appendChild(item);
+  }
+
+  /* ============================
+     Video call (local camera only)
+     ============================ */
+  async function showFriendCallChooser() {
+    if (!currentUser) return alert("Log in to call a friend.");
+    const userDoc = await db.collection("users").doc(currentUser.uid).get();
+    const friends = (userDoc.data().friends || []);
+    if (friends.length === 0) return alert("You have no friends added yet.");
+    const friendNames = [];
+    for (const fid of friends) {
+      const doc = await db.collection("users").doc(fid).get();
+      friendNames.push(doc.data().name || doc.data().email);
+    }
+    const choice = prompt(
+      "Select a friend to call:\n\n" +
+      friendNames.map((n, i) => `${i+1}. ${n}`).join("\n")
+    );
+    const index = parseInt(choice) - 1;
+    if (index < 0 || index >= friends.length) return;
+    startVideoCall();
+  }
+
+  async function startVideoCall() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const videoContainer = document.getElementById("videoContainer");
+      const video = document.getElementById("localVideo");
+      video.srcObject = stream;
+      videoContainer.style.display = "block";
+    } catch (err) {
+      alert("Camera access denied.");
+      console.error(err);
+    }
+  }
+
+  /* ============================
+     File upload handler
+     ============================ */
+  async function handleFileUpload(event) {
+    if (!currentUser) return alert('Please log in to upload files.');
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+      const ref = storage.ref(`users/${currentUser.uid}/uploads/${Date.now()}_${file.name}`);
+      const snap = await ref.put(file);
+      const url = await snap.ref.getDownloadURL();
+      alert('Upload successful!');
+      console.log('file url', url);
+    } catch (err) {
+      console.error('upload error', err);
+      alert('Failed to upload file');
+    }
+  }
+
+  /* ============================
+     Auth UI + Handlers (signup/login/logout)
+     ============================ */
+  function showLoginModal() {
+    const modal = document.getElementById('loginModal');
+    modal.querySelector('.modal-card').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong>Log in</strong>
+        <button onclick="closeModal('loginModal')">✖</button>
+      </div>
+      <form id="loginForm" onsubmit="loginUser(event)">
+        <div style="margin-bottom:8px;">
+          <label style="display:block;font-weight:600;margin-bottom:6px;">Email</label>
+          <input id="loginEmail" type="email" required class="form-input" />
+        </div>
+        <div style="margin-bottom:8px;">
+          <label style="display:block;font-weight:600;margin-bottom:6px;">Password</label>
+          <input id="loginPassword" type="password" required class="form-input" />
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+          <button type="button" class="btn" onclick="closeModal('loginModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log in</button>
+        </div>
+      </form>
+    `;
+    modal.classList.add('show');
+  }
+
+  function showSignupModal() {
+    const modal = document.getElementById('signupModal');
+    modal.querySelector('.modal-card').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong>Sign up</strong>
+        <button onclick="closeModal('signupModal')">✖</button>
+      </div>
+      <form id="signupForm" onsubmit="signupUser(event)">
+        <div style="margin-bottom:8px;">
+          <label style="display:block;font-weight:600;margin-bottom:6px;">Full name</label>
+          <input id="signupName" type="text" required class="form-input" />
+        </div>
+        <div style="margin-bottom:8px;">
+          <label style="display:block;font-weight:600;margin-bottom:6px;">Email</label>
+          <input id="signupEmail" type="email" required class="form-input" />
+        </div>
+        <div style="margin-bottom:8px;">
+          <label style="display:block;font-weight:600;margin-bottom:6px;">Password</label>
+          <input id="signupPassword" type="password" required class="form-input" />
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+          <button type="button" class="btn" onclick="closeModal('signupModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create account</button>
+        </div>
+      </form>
+    `;
+    modal.classList.add('show');
+  }
+
+  function closeModal(modalId) {
+    const m = document.getElementById(modalId);
+    if (m) m.classList.remove('show');
+  }
+
+  async function signupUser(e) {
+    e.preventDefault();
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    if (!name || !email || !password) return alert('Please fill all fields.');
+    try {
+      const res = await auth.createUserWithEmailAndPassword(email, password);
+      const uid = res.user.uid;
+      await db.collection('users').doc(uid).set({
+        name,
+        email,
+        wager: 0,
+        friends: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      closeModal('signupModal');
+      alert('Account created — welcome!');
+    } catch (err) {
+      console.error('signup error', err);
+      alert(err.message || 'Failed to sign up');
+    }
+  }
+
+  async function loginUser(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      closeModal('loginModal');
+    } catch (err) {
+      console.error('login error', err);
+      alert(err.message || 'Login failed');
+    }
+  }
+
+  async function logoutUser() {
+    try {
+      await auth.signOut();
+      document.getElementById('appContainer').style.display = 'none';
+      document.getElementById('landingPage').style.display = 'flex';
+      currentUser = null;
+    } catch (err) {
+      console.error('logout error', err);
+    }
+  }
+
+  /* ============================
+     Auth state observer & data loaders
+     ============================ */
+  auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      currentUser = user;
+      document.getElementById('landingPage').style.display = 'none';
+      document.getElementById('appContainer').style.display = 'block';
+      try {
+        await loadUserData();
+      } catch (e) {
+        console.error('loadUserData error', e);
+      }
+      if (pendingInvite) {
+        try {
+          await acceptInvite(pendingInvite);
+          pendingInvite = null;
+        } catch (e) {
+          console.warn('accept invite error', e);
+        }
+      }
+    } else {
+      currentUser = null;
+      document.getElementById('landingPage').style.display = 'flex';
+      document.getElementById('appContainer').style.display = 'none';
+    }
+  });
+
+  async function loadUserData() {
+    if (!currentUser) return;
+    try {
+      await loadTasks();
+      await loadGoals();
+      await loadFriends();
+      await loadRecapHistory();
+      await loadTodaysTasks();
+    } catch (err) {
+      console.error('loadUserData error', err);
+    }
+  }
+
+  async function loadTodaysTasks() {
+    if (!currentUser) return;
+    try {
+      const today = new Date();
+      const iso = today.toISOString().split('T')[0];
+      const snapshot = await db.collection('users').doc(currentUser.uid).collection('tasks').where('date', '==', iso).get();
+      const container = document.getElementById('dashboard-today-tasks');
+      container.innerHTML = '';
+      if (snapshot.empty) {
+        container.innerHTML = `<div class="task-item"><div class="task-left"><div class="task-checkbox">●</div><div><div class="task-text">No tasks for today. Create a goal or task to see it here.</div></div></div></div>`;
+        return;
+      }
+      snapshot.forEach(doc => {
+        const t = doc.data();
+        const el = document.createElement('div');
+        el.className = 'task-item';
+        el.innerHTML = `
+          <div class="task-left">
+            <div class="task-checkbox" onclick="toggleTask('${doc.id}')">${t.completed ? '✓' : '●'}</div>
+            <div style="display:flex;flex-direction:column;">
+              <div style="${t.completed ? 'text-decoration:line-through;opacity:0.6' : ''}">${t.name}</div>
+              <small style="color:#666">${t.date || ''}</small>
+            </div>
+          </div>
+          <div class="progress-badge">⚡ ${t.progress || 0}%</div>
+        `;
+        container.appendChild(el);
+      });
+    } catch (err) {
+      console.error('loadTodaysTasks error', err);
+    }
+  }
+
+  async function loadGoals() {
+    if (!currentUser) return;
+    try {
+      const snapshot = await db.collection('users').doc(currentUser.uid).collection('goals').orderBy('createdAt','desc').get();
+      const container = document.getElementById('goal-tracker-list');
+      container.innerHTML = '';
+      if (snapshot.empty) {
+        container.innerHTML = `<div style="color:#666">No active goals — create a SMART goal to get started.</div>`;
+        return;
+      }
+      snapshot.forEach(doc => {
+        const g = doc.data();
+        const el = document.createElement('div');
+        el.style.padding = '8px 0';
+        el.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-weight:700">${g.name}</div>
+            <div style="font-size:13px;color:#666">${g.startDate} → ${g.endDate}</div>
+          </div>
+        `;
+        container.appendChild(el);
+      });
+    } catch (err) {
+      console.error('loadGoals error', err);
+    }
+  }
+
+  async function loadRecapHistory() {
+    const hist = document.getElementById('recapHistory');
+    if (!hist) return;
+    // existing local recordings will remain displayed
+  }
+
+  // Expose small helpers for console/testing
+  window.loadUserData = loadUserData;
+  window.loadTodaysTasks = loadTodaysTasks;
+  window.loadTasks = loadTasks;
+  window.loadGoals = loadGoals;
+  window.loadFriends = loadFriends;
+  window.acceptInvite = acceptInvite;
+  window.handleFileUpload = handleFileUpload;
+
+  // Initial UI update: ensure timer shows correctly
+  document.addEventListener('DOMContentLoaded', () => {
+    updateTimerDisplay();
+  });
+  </script>
+</body>
+</html>
